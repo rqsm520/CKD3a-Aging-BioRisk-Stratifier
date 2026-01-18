@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CKD3a-Aging-BioRisk Stratifier</title>
+    <!-- Add Chart.js for Gauge Chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Add Plotly.js for Interactive Survival Analysis -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --light: #f8f9fa;
+            --dark: #2c3e50;
+            --success: #27ae60;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+        }
+
+        /* Header Section */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, #34495e 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+        
+        .header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-top: 10px;
+            font-weight: 300;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        /* Card Styles */
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        h2 {
+            color: var(--primary);
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 15px;
+            margin-top: 0;
+            font-size: 1.5em;
+        }
+
+        /* Intro Section (New) */
+        .intro-section {
+            grid-column: 1 / -1; /* Full width */
+            background: linear-gradient(to right, #ffffff, #f8f9fa);
+            border-left: 5px solid var(--secondary);
+        }
+
+        .intro-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .intro-text h3 {
+            margin-top: 0;
+            color: var(--secondary);
+        }
+
+        /* Form Styles */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input.warning {
+            border-color: #f39c12;
+            background-color: #fef9e7;
+        }
+
+        input:focus {
+            border-color: var(--secondary);
+            outline: none;
+        }
+
+        .unit {
+            font-size: 0.8em;
+            color: #999;
+            font-weight: normal;
+        }
+        
+        .warning-text {
+            color: #d35400;
+            font-size: 0.8em;
+            margin-top: 4px;
+            display: none;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(52, 152, 219, 0.2);
+        }
+
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 8px rgba(52, 152, 219, 0.3);
+        }
+
+        /* Results Section */
+        #result {
+            display: none;
+            text-align: center;
+        }
+
+        /* Fixed Gauge Container */
+        .gauge-container {
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* No relative positioning needed for children unless specific */
+        }
+        
+        .gauge-result-text {
+            text-align: center;
+            margin-top: 10px; /* POSITIVE margin to separate from chart */
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .result-value-big {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 5px 0;
+            line-height: 1.2;
+        }
+        
+        .result-label {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .interpretation-box {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+            border-left: 4px solid #ccc;
+        }
+
+        .interpretation-box.danger {
+            border-left-color: var(--accent);
+            background-color: #fdf0ed;
+        }
+
+        .interpretation-box.safe {
+            border-left-color: var(--success);
+            background-color: #eafaf1;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            border-top: 1px solid #eee;
+            margin-top: 40px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>CKD3a-Aging-BioRisk Stratifier</h1>
+        <div class="subtitle">Systemic Aging Surveillance for Early-Stage CKD (Stage G3a-A1)</div>
+    </div>
+
+    <div class="container">
+        
+        <!-- Project Introduction -->
+        <div class="card intro-section">
+            <div class="intro-content">
+                <div style="font-size: 3em;">🧬</div>
+                <div class="intro-text">
+                    <h3>About the Science</h3>
+                    <p>
+                        Older adults with <strong>Stage G3a-A1 Chronic Kidney Disease</strong> (eGFR 45-59 mL/min/1.73m², no albuminuria) are often categorized as "low risk". However, our study reveals a hidden subgroup driven by <strong>Accelerated Biological Aging</strong>.
+                    </p>
+                    <p>
+                        Using the <strong>Phenotypic Age</strong> algorithm (Levine et al.), this tool quantifies your biological age to stratify mortality risk, offering a more precise assessment than kidney function alone.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Left Column: Calculator -->
+        <div class="card">
+            <h2>Clinical Parameters</h2>
+            <form id="calcForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Age <span class="unit">(years)</span></label>
+                        <input type="number" id="age" required min="50" max="120" placeholder="50-120">
+                    </div>
+                    <div class="form-group">
+                        <label>Albumin <span class="unit">(g/L)</span></label>
+                        <input type="number" id="albumin" required step="0.1" placeholder="e.g. 42.0">
+                        <div class="warning-text" id="warn-albumin">Value seems low/high</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Creatinine <span class="unit">(umol/L)</span></label>
+                        <input type="number" id="creatinine" required step="1" placeholder="e.g. 88">
+                    </div>
+                    <div class="form-group">
+                        <label>Total Cholesterol <span class="unit">(mg/dL)</span></label>
+                        <input type="number" id="totchol" required step="1" placeholder="e.g. 180">
+                    </div>
+                    <div class="form-group">
+                        <label>CRP <span class="unit">(mg/L)</span></label>
+                        <input type="number" id="crp" required step="0.01" placeholder="e.g. 3.0">
+                    </div>
+                    <div class="form-group">
+                        <label>Lymphocyte % <span class="unit">(%)</span></label>
+                        <input type="number" id="lymph" required step="0.1" placeholder="e.g. 30.0">
+                    </div>
+                    <div class="form-group">
+                        <label>MCV <span class="unit">(fL)</span></label>
+                        <input type="number" id="mcv" required step="0.1" placeholder="e.g. 90.0">
+                    </div>
+                    <div class="form-group">
+                        <label>HbA1c <span class="unit">(%)</span></label>
+                        <input type="number" id="hba1c" required step="0.1" placeholder="e.g. 5.5">
+                    </div>
+                    <div class="form-group">
+                        <label>ALP <span class="unit">(U/L)</span></label>
+                        <input type="number" id="alp" required step="1" placeholder="e.g. 70">
+                    </div>
+                    <div class="form-group">
+                        <label>WBC <span class="unit">(1000 cells/uL)</span></label>
+                        <input type="number" id="wbc" required step="0.1" placeholder="e.g. 6.5">
+                    </div>
+                    <div class="form-group">
+                        <label>SBP <span class="unit">(mmHg)</span></label>
+                        <input type="number" id="sbp" required step="1" placeholder="e.g. 120">
+                    </div>
+                    <div class="form-group">
+                        <label>BUN <span class="unit">(mg/dL)</span></label>
+                        <input type="number" id="bun" required step="1" placeholder="e.g. 15">
+                    </div>
+                    <div class="form-group">
+                        <label>Uric Acid <span class="unit">(mg/dL)</span></label>
+                        <input type="number" id="uap" required step="0.1" placeholder="e.g. 5.5">
+                    </div>
+                </div>
+                
+                <button type="button" onclick="calculateRisk()">Calculate Biological Age</button>
+                <div style="margin-top:10px; text-align:center; font-size:0.9em;">
+                    <a href="#" onclick="fillDemoData()" style="color: var(--secondary); text-decoration: none;">Populate with "Accelerated Aging" Demo Data</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Right Column: Results & Visuals -->
+        <div class="card" id="result-card">
+            <h2>Risk Assessment</h2>
+            
+            <div id="initial-state" style="text-align: center; color: #999; padding: 40px 0;">
+                <div style="font-size: 4em; margin-bottom: 20px; opacity: 0.3;">📊</div>
+                <p>Enter your clinical parameters on the left to generate your biological age profile.</p>
+            </div>
+
+            <div id="result">
+                <!-- Gauge Chart Container -->
+                <div class="gauge-container">
+                    <canvas id="riskGauge"></canvas>
+                    <div class="gauge-result-text">
+                        <div class="result-label">PhenoAge</div>
+                        <div class="result-value-big" id="resPhenoAge">--</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin: 20px 0; border-top: 1px solid #eee; padding-top: 20px;">
+                    <div style="text-align: center; flex: 1;">
+                        <div class="result-label">Chronological Age</div>
+                        <div style="font-size: 1.2em; font-weight: bold;" id="displayAge">--</div>
+                    </div>
+                    <div style="text-align: center; flex: 1; border-left: 1px solid #eee;">
+                        <div class="result-label">Age Acceleration</div>
+                        <div style="font-size: 1.2em; font-weight: bold;" id="resAccel">--</div>
+                    </div>
+                </div>
+
+                <!-- New Mortality Risk Section -->
+                <div style="background: #fdfbf7; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; border: 1px solid #fae5b3;">
+                    <div class="result-label" style="margin-bottom: 5px; color: #d35400;">Estimated Relative Mortality Risk</div>
+                    <div style="font-size: 2.2em; font-weight: bold; color: #d35400;" id="resRisk">--</div>
+                    <div style="font-size: 0.9em; color: #e67e22; font-weight: 500;" id="resRiskText">--</div>
+                </div>
+
+                <div id="interpBox" class="interpretation-box">
+                    <strong>Interpretation:</strong> <span id="resInterp">--</span>
+                    <p style="font-size: 0.9em; margin-top: 12px; color: #444; line-height: 1.6;" id="interpFooter">
+                        <!-- Dynamic Content -->
+                    </p>
+                </div>
+                
+                <!-- Plotly Chart -->
+                <div id="survival-plot" style="width:100%; height:400px; margin-top: 30px;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        <p><strong>Disclaimer:</strong> This tool is for research and educational purposes only. It is not a diagnostic device. Mortality risk estimates are derived from hazard ratios (HR=1.27/SD) observed in the NHANES study population.</p>
+        <p>&copy; 2026 Nature Aging Submission Team. Based on BioAge Package (Kwon & Belsky, 2021) and NHANES Analysis.</p>
+    </div>
+
+    <div class="container">
+        
+        <!-- Citation Section -->
+        <div class="citation-box">
+            <h3 style="margin-top:0; color: var(--secondary);">📚 How to Cite This Tool</h3>
+            <p>If you use this calculator in your research, please cite our study:</p>
+            <div class="citation-text">
+[Author List]. Shift from Disease Management to Systemic Aging Surveillance: Biological Age Acceleration as a Novel Prognostic Marker in Chronic Kidney Disease. [Journal Name]. 202X. Available at: https://github.com/your-username/CKD3a-Aging-BioRisk-Stratifier
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Disclaimer Footer -->
+    <div class="disclaimer">
+        <div style="max-width: 800px; margin: 0 auto;">
+            <p><strong>⚠️ Research Use Only | Medical Disclaimer</strong></p>
+            <p>
+                This tool is intended for <strong>research and educational purposes only</strong>. It is NOT a diagnostic device and should NOT be used as a substitute for professional medical advice, diagnosis, or treatment. 
+            </p>
+            <p>
+                The biological age estimates and risk stratifications are based on population-level epidemiological data (NHANES) and may not apply to individual clinical cases. Always consult with a qualified healthcare provider for medical decision-making.
+            </p>
+            <p style="margin-top: 20px; font-size: 0.85em;">
+                &copy; 2025 CKD-Aging Research Group. Open Source (MIT License).
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let riskChart = null;
+
+        function fillDemoData() {
+            document.getElementById('age').value = 78;
+            document.getElementById('albumin').value = 21; // Low (Pathological)
+            document.getElementById('creatinine').value = 88;
+            document.getElementById('totchol').value = 150; 
+            document.getElementById('crp').value = 15.0; // High (Pathological)
+            document.getElementById('lymph').value = 20;
+            document.getElementById('mcv').value = 90;
+            document.getElementById('hba1c').value = 5.8;
+            document.getElementById('alp').value = 70;
+            document.getElementById('wbc').value = 11.2;
+            document.getElementById('sbp').value = 130;
+            document.getElementById('bun').value = 20;
+            document.getElementById('uap').value = 7.5; // High
+            
+            // Clear warnings
+            document.querySelectorAll('.warning').forEach(el => el.classList.remove('warning'));
+            document.querySelectorAll('.warning-text').forEach(el => el.style.display = 'none');
+            
+            calculateRisk();
+        }
+
+        function initChart(value, min, max) {
+            const ctx = document.getElementById('riskGauge').getContext('2d');
+            
+            if (riskChart) {
+                riskChart.destroy();
+            }
+            
+            riskChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Physiological', 'Accelerated'],
+                    datasets: [{
+                        data: [50, 50], 
+                        backgroundColor: ['#27ae60', '#e74c3c'],
+                        borderWidth: 0,
+                        circumference: 180,
+                        rotation: 270,
+                        cutout: '75%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 2, // Perfect semi-circle aspect
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    },
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true
+                    },
+                    layout: {
+                        padding: {
+                            bottom: 10
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize empty chart
+        initChart(0, 0, 100);
+
+        function updatePlotlyChart(accel) {
+            const plotDiv = document.getElementById('survival-plot');
+            if (!plotDiv) return;
+
+            // Generate Survival Curve Data (Mock logic based on accel)
+            // S(t) = S0(t)^exp(beta*accel)
+            // S0(t) = exp(-lambda*t) -> lambda ~ 0.005/month
+            const months = Array.from({length: 121}, (_, i) => i); // 0-120 months (10 years)
+            const lambda = 0.005; 
+            const beta = 0.05; // log(HR) per year of accel
+            
+            // Baseline Survival (Accel = 0)
+            const surv_base = months.map(t => Math.exp(-lambda * t));
+            
+            // Patient Survival
+            const risk_score = Math.exp(beta * accel);
+            const surv_patient = surv_base.map(s => Math.pow(s, risk_score));
+            
+            // High Risk Reference (Accel = +5)
+            const surv_high = surv_base.map(s => Math.pow(s, Math.exp(beta * 5)));
+            
+            // Low Risk Reference (Accel = -5)
+            const surv_low = surv_base.map(s => Math.pow(s, Math.exp(beta * -5)));
+
+            const tracePatient = {
+                x: months,
+                y: surv_patient,
+                mode: 'lines',
+                name: 'Your Projected Survival',
+                line: { color: accel > 0 ? '#e74c3c' : '#27ae60', width: 4 }
+            };
+
+            const traceBase = {
+                x: months,
+                y: surv_base,
+                mode: 'lines',
+                name: 'Average Peer (Accel=0)',
+                line: { color: '#7f8c8d', width: 2, dash: 'dash' }
+            };
+            
+            const traceHigh = {
+                x: months,
+                y: surv_high,
+                mode: 'lines',
+                name: 'High Risk (+5y Accel)',
+                line: { color: '#e74c3c', width: 1, opacity: 0.3 }
+            };
+            
+            const traceLow = {
+                x: months,
+                y: surv_low,
+                mode: 'lines',
+                name: 'Low Risk (-5y Accel)',
+                line: { color: '#27ae60', width: 1, opacity: 0.3 }
+            };
+
+            const layout = {
+                title: {
+                    text: '10-Year Survival Trajectory Projection',
+                    font: { size: 16 }
+                },
+                xaxis: { title: 'Months Follow-up', range: [0, 120] },
+                yaxis: { title: 'Survival Probability', range: [0, 1] },
+                showlegend: true,
+                legend: { x: 0.05, y: 0.05 },
+                margin: { l: 50, r: 20, t: 40, b: 40 }
+            };
+
+            Plotly.newPlot(plotDiv, [traceHigh, traceLow, traceBase, tracePatient], layout);
+        }
+
+        function updateChart(accel) {
+            const ctx = document.getElementById('riskGauge').getContext('2d');
+            
+            // Visual range logic: -15 to +15
+            
+            if (riskChart) riskChart.destroy();
+            
+            riskChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Physiological Zone', 'Accelerated Zone'],
+                    datasets: [{
+                        data: [50, 50],
+                        backgroundColor: ['#2ecc71', '#e74c3c'],
+                        borderWidth: 2,
+                        borderColor: '#fff',
+                        circumference: 180,
+                        rotation: 270,
+                        cutout: '80%'
+                    }]
+                },
+                options: {
+                    aspectRatio: 2, // Tighter vertical space
+                    plugins: {
+                        legend: { 
+                            display: true,
+                            position: 'bottom',
+                            labels: { padding: 10, font: { size: 11 } }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Biological Aging Status',
+                            padding: { bottom: 5 },
+                            font: { size: 14, weight: 'bold', family: 'Segoe UI' }
+                        }
+                    },
+                    layout: {
+                        padding: 0
+                    }
+                },
+                plugins: [{
+                    id: 'needle',
+                    afterDatasetDraw: function(chart) {
+                        const { ctx, data, chartArea: { top, bottom, left, right, width, height } } = chart;
+                        ctx.save();
+                        
+                        // Map accel (-15 to +15) to angle (-PI/2 to PI/2)
+                        let val = Math.max(-15, Math.min(15, accel));
+                        let angle = (val / 15) * (Math.PI / 2);
+                        
+                        // Center point (for aspect ratio 2, center is bottom-middle)
+                        const cx = width / 2 + left;
+                        const cy = height + top - 5; // Slight adjustment up
+                        
+                        ctx.translate(cx, cy);
+                        ctx.rotate(angle);
+                        
+                        // Draw Needle
+                        ctx.beginPath();
+                        ctx.moveTo(0, -3);
+                        ctx.lineTo(height - 20, 0); // Length
+                        ctx.lineTo(0, 3);
+                        ctx.fillStyle = '#2c3e50';
+                        ctx.fill();
+                        
+                        // Draw Pivot
+                        ctx.rotate(-angle);
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 6, 0, Math.PI * 2);
+                        ctx.fillStyle = '#2c3e50';
+                        ctx.fill();
+                        
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+
+        function calculateRisk() {
+            // Get inputs
+            const ageInput = document.getElementById('age');
+            
+            const age = parseFloat(ageInput.value);
+            const albumin = parseFloat(document.getElementById('albumin').value);
+            const creatinine = parseFloat(document.getElementById('creatinine').value);
+            const totchol = parseFloat(document.getElementById('totchol').value);
+            const crp = parseFloat(document.getElementById('crp').value);
+            const lymph = parseFloat(document.getElementById('lymph').value);
+            const mcv = parseFloat(document.getElementById('mcv').value);
+            const hba1c = parseFloat(document.getElementById('hba1c').value);
+            const alp = parseFloat(document.getElementById('alp').value);
+            const wbc = parseFloat(document.getElementById('wbc').value);
+            const sbp = parseFloat(document.getElementById('sbp').value);
+            const bun = parseFloat(document.getElementById('bun').value);
+            const uap = parseFloat(document.getElementById('uap').value);
+
+            if ([age, albumin, creatinine, totchol, crp, lymph, mcv, hba1c, alp, wbc, sbp, bun, uap].some(isNaN)) {
+                alert("Please fill in all fields with valid numbers.");
+                return;
+            }
+
+            // Calculation Logic (CKD-Specific PhenoAge Model)
+            // Trained on G3a-A1 Population (N=970)
+            const mean_age = 71.5;
+            const sd_age = 7.8;
+            
+            // Note: These coefficients are derived from the project training script.
+            // PhenoAgeAccel > 0 increases mortality risk (HR 1.27 per SD).
+            // GrimAge2Accel > 0 increases mortality risk (HR 1.66 per SD).
+            
+            // Transformations
+            // CRP: log(mg/L + 1). Input is mg/L.
+            const ln_crp = Math.log(crp + 1); 
+            // Creatinine: log(umol/L + 1)
+            const ln_creat = Math.log(creatinine + 1); 
+
+            // Coefficients (Trained on Project Data)
+            // Updated Coefficients from train_ckd_phenoage.py (N=970)
+            const c_intercept = -30.6147;
+            const c_Age = 1.0100;
+            const c_albumin_gL = -0.4516;
+            const c_alp = 0.0322;
+            const c_lncrp = 0.5507;
+            const c_totchol = -0.0416;
+            const c_lncreat_umol = 2.7821;
+            const c_hba1c = 0.3041;
+            const c_sbp = -0.0020;
+            const c_bun = 0.0594;
+            const c_uap = 0.4228;
+            const c_lymph = -0.0428;
+            const c_mcv = 0.3702;
+            const c_wbc = 0.5828;
+
+            const phenoAge = c_intercept + 
+                       (c_Age * age) +
+                       (c_albumin_gL * albumin) +
+                       (c_lncreat_umol * ln_creat) +
+                       (c_totchol * totchol) +
+                       (c_lncrp * ln_crp) +
+                       (c_lymph * lymph) +
+                       (c_mcv * mcv) +
+                       (c_hba1c * hba1c) +
+                       (c_alp * alp) +
+                       (c_wbc * wbc) +
+                       (c_sbp * sbp) +
+                       (c_bun * bun) +
+                       (c_uap * uap);
+            
+            const accel = phenoAge - age;
+
+            // Display Results
+            document.getElementById('initial-state').style.display = 'none';
+            document.getElementById('result').style.display = 'block';
+            
+            updatePlotlyChart(accel);
+
+            document.getElementById('resPhenoAge').innerText = phenoAge.toFixed(1) + " y";
+            document.getElementById('displayAge').innerText = age + " y";
+            
+            const accelElem = document.getElementById('resAccel');
+            accelElem.innerText = (accel > 0 ? "+" : "") + accel.toFixed(1) + " y";
+            
+            // Calculate Relative Mortality Risk (HR = 1.27 per SD, SD = 3.84)
+            const hrPerSD = 1.27;
+            const sd_val = 3.84;
+            const relativeRisk = Math.pow(hrPerSD, accel / sd_val);
+            const riskPercent = (relativeRisk - 1) * 100;
+
+            const riskElem = document.getElementById('resRisk');
+            const riskTextElem = document.getElementById('resRiskText');
+
+            if (accel > 0) {
+                riskElem.innerText = relativeRisk.toFixed(2) + "x";
+                riskElem.style.color = '#c0392b';
+                riskTextElem.innerText = "+" + riskPercent.toFixed(1) + "% Increased Risk vs. Peers";
+            } else {
+                riskElem.innerText = relativeRisk.toFixed(2) + "x";
+                riskElem.style.color = '#27ae60';
+                riskTextElem.innerText = Math.abs(riskPercent).toFixed(1) + "% Lower Risk vs. Peers";
+            }
+
+            // Enhanced Interpretation Logic
+            const interpBox = document.getElementById('interpBox');
+            const interpFooter = document.getElementById('interpFooter');
+            
+            let statusTerm = "";
+            let statusColor = "";
+            let contextText = "";
+            let evidenceText = "";
+
+            if (accel > 0) {
+                // Pathological
+                statusTerm = "Pathological Aging";
+                statusColor = "#c0392b"; // Red
+                accelElem.style.color = '#e74c3c';
+                interpBox.className = 'interpretation-box danger';
+                
+                contextText = `Your calculated <strong>Phenotypic Age (${phenoAge.toFixed(1)} years)</strong> is higher than your actual chronological age (${age} years), indicating an accelerated biological aging process.`;
+                
+                evidenceText = `<strong>Clinical Implication:</strong> Based on your biological age acceleration (+${accel.toFixed(1)} years), our model estimates a <strong>${riskPercent.toFixed(1)}% higher risk</strong> of all-cause mortality compared to peers with physiological aging. This projection is derived from our study of older adults with Stage G3a-A1 CKD, where every 1-SD (3.8 years) increase in acceleration was linked to a 27% risk escalation (HR 1.27, 95% CI 1.12-1.44).`;
+                
+            } else {
+                // Physiological
+                statusTerm = "Physiological Aging";
+                statusColor = "#27ae60"; // Green
+                accelElem.style.color = '#27ae60';
+                interpBox.className = 'interpretation-box safe';
+                
+                contextText = `Your calculated <strong>Phenotypic Age (${phenoAge.toFixed(1)} years)</strong> is consistent with or younger than your actual chronological age (${age} years), indicating a preserved physiological state.`;
+                
+                evidenceText = `<strong>Clinical Implication:</strong> In our study cohort, participants with this "Physiological Aging" profile demonstrated significantly better survival rates. Your estimated mortality risk is <strong>${Math.abs(riskPercent).toFixed(1)}% lower</strong> than that of accelerated peers, suggesting a protective physiological advantage despite reduced kidney function.`;
+            }
+
+            document.getElementById('resInterp').innerHTML = `<span style='color:${statusColor}; font-weight:bold; font-size: 1.1em;'>${statusTerm}</span>`;
+            if (interpFooter) {
+                interpFooter.innerHTML = `${contextText}<br><br>${evidenceText}`;
+            }
+            
+            // Update Chart
+            updateChart(accel);
+            
+            // Scroll to result on mobile
+            if(window.innerWidth < 768) {
+                document.getElementById('result-card').scrollIntoView({behavior: 'smooth'});
+            }
+        }
+    </script>
+</body>
+</html>
